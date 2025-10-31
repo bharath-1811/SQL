@@ -10,4 +10,4 @@ Each folder or file in this repo reflects a topic I’ve explored, including:
 - Aggregate functions and subqueries  
 - Healthcare and pharma-related data exercises  
 
-This is a continuous learning project — I’ll keep updating it as I progress 🚀
+I’ll keep updating 
