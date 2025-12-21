@@ -1,11 +1,4 @@
-/* ========================================================================
-   CLINICAL TRIAL ENROLLMENT TRACKER (SQL PROJECT) - SQL SERVER VERSION
-   
-   ======================================================================== */
-
--- ------------------------------------------------------------------------
--- 1. CREATE TABLES
--- ------------------------------------------------------------------------
+# CLINICAL TRIAL ENROLLMENT TRACKER
 
 CREATE TABLE dbo.study_sites (
     site_id     INT IDENTITY(1,1) PRIMARY KEY,
@@ -24,10 +17,6 @@ CREATE TABLE dbo.patients (
 GO
 
 
--- ------------------------------------------------------------------------
--- 2. SEED SAMPLE STUDY SITES
--- ------------------------------------------------------------------------
-
 INSERT INTO dbo.study_sites (site_name) VALUES
 ('Chennai'),
 ('Bangalore'),
@@ -35,11 +24,6 @@ INSERT INTO dbo.study_sites (site_name) VALUES
 ('Mumbai');
 GO
 
-
--- ------------------------------------------------------------------------
--- 3. FUNCTIONS
--- ------------------------------------------------------------------------
--- Validate age function (returns BIT: 1 = valid, 0 = invalid)
 
 CREATE FUNCTION dbo.validate_age (@age INT)
 RETURNS BIT
@@ -54,12 +38,6 @@ BEGIN
 END;
 GO
 
-
--- ------------------------------------------------------------------------
--- 4. STORED PROCEDURES
--- ------------------------------------------------------------------------
-
--- Add new patient (similar to Python add_patient())
 CREATE PROCEDURE dbo.add_patient
     @pid     VARCHAR(20),
     @pname   VARCHAR(100),
@@ -72,7 +50,6 @@ BEGIN
 
     DECLARE @sid INT;
 
-    -- Validate age using function
     IF dbo.validate_age(@page) = 0
     BEGIN
         RAISERROR('Invalid age %d (must be between 18 and 65).', 16, 1, @page);
@@ -92,14 +69,12 @@ BEGIN
         SET @sid = SCOPE_IDENTITY();
     END;
 
-    -- Insert patient
     INSERT INTO dbo.patients (patient_id, name, age, gender, site_id)
     VALUES (@pid, @pname, @page, @pgender, @sid);
 END;
 GO
 
 
--- Delete patient (similar to Python delete_patient())
 CREATE PROCEDURE dbo.delete_patient
     @pid VARCHAR(20)
 AS
@@ -118,10 +93,6 @@ END;
 GO
 
 
--- ------------------------------------------------------------------------
--- 5. VIEW: PATIENT LIST 
--- ------------------------------------------------------------------------
-
 CREATE VIEW dbo.vw_patient_list
 AS
 SELECT
@@ -136,111 +107,6 @@ LEFT JOIN dbo.study_sites AS s
     ON p.site_id = s.site_id;
 GO
 
-
--- ------------------------------------------------------------------------
--- 6. CTE EXAMPLES
--- ------------------------------------------------------------------------
-
-/*
--- 6.1 Search patient by ID using a CTE
-WITH search_cte AS (
-    SELECT 
-        p.patient_id,
-        p.name,
-        p.age,
-        p.gender,
-        s.site_name
-    FROM dbo.patients AS p
-    JOIN dbo.study_sites AS s
-        ON p.site_id = s.site_id
-)
-SELECT *
-FROM search_cte
-WHERE patient_id = 'P001';
-*/
-
-
-/*
--- 6.2 Summary report (total, males, females) using CTE
-WITH stats AS (
-    SELECT
-        COUNT(*) AS total,
-        SUM(CASE WHEN gender = 'M' THEN 1 ELSE 0 END) AS males,
-        SUM(CASE WHEN gender = 'F' THEN 1 ELSE 0 END) AS females
-    FROM dbo.patients
-)
-SELECT *
-FROM stats;
-*/
-
-
-/*
--- 6.3 Site-wise distribution using CTE
-WITH site_cte AS (
-    SELECT 
-        s.site_name,
-        COUNT(p.patient_id) AS [count]
-    FROM dbo.study_sites AS s
-    LEFT JOIN dbo.patients AS p
-        ON s.site_id = p.site_id
-    GROUP BY s.site_name
-)
-SELECT *
-FROM site_cte
-ORDER BY [count] DESC;
-*/
-
-
--- ------------------------------------------------------------------------
--- 7. RECURSIVE CTE
--- ------------------------------------------------------------------------
-
-/*
-WITH site_counts AS (
-    SELECT 
-        s.site_name,
-        COUNT(p.patient_id) AS enrollments
-    FROM dbo.study_sites AS s
-    LEFT JOIN dbo.patients AS p
-        ON s.site_id = p.site_id
-    GROUP BY s.site_name
-),
-ordered AS (
-    SELECT
-        site_name,
-        enrollments,
-        ROW_NUMBER() OVER (ORDER BY enrollments DESC) AS [rank]
-    FROM site_counts
-),
-recursive_rank AS (
-    -- Anchor
-    SELECT 
-        site_name,
-        enrollments,
-        [rank]
-    FROM ordered
-    WHERE [rank] = 1
-
-    UNION ALL
-
-    -- Recursive part
-    SELECT 
-        o.site_name,
-        o.enrollments,
-        o.[rank]
-    FROM ordered AS o
-    JOIN recursive_rank AS r
-        ON o.[rank] = r.[rank] + 1
-)
-SELECT *
-FROM recursive_rank
-ORDER BY [rank];
-*/
-
-
--- ------------------------------------------------------------------------
--- 8. TRIGGER: EXTRA AGE ENFORCEMENT
--- ------------------------------------------------------------------------
 
 CREATE TRIGGER dbo.trg_age_check
 ON dbo.patients
@@ -262,9 +128,6 @@ END;
 GO
 
 
--- ------------------------------------------------------------------------
--- 9. SAMPLE DATA INSERTS 
--- ------------------------------------------------------------------------
 
 EXEC dbo.add_patient @pid = 'P001', @pname = 'Rahul', @page = 34, @pgender = 'M', @psite = 'Chennai';
 EXEC dbo.add_patient @pid = 'P002', @pname = 'Priya', @page = 29, @pgender = 'F', @psite = 'Bangalore';
@@ -272,29 +135,11 @@ EXEC dbo.add_patient @pid = 'P003', @pname = 'Vikas', @page = 40, @pgender = 'M'
 GO
 
 
--- ------------------------------------------------------------------------
--- 10. SAMPLE QUERIES
--- ------------------------------------------------------------------------
-
--- 10.1 View all patients
 SELECT *
 FROM dbo.vw_patient_list
 ORDER BY created_at;
 
 
--- 10.2 Delete a patient
--- EXEC dbo.delete_patient @pid = 'P001';
 
-
--- 10.3 Summary stats example
-/*
-WITH stats AS (
-    SELECT
-        COUNT(*) AS total,
-        SUM(CASE WHEN gender = 'M' THEN 1 ELSE 0 END) AS males,
-        SUM(CASE WHEN gender = 'F' THEN 1 ELSE 0 END) AS females
-    FROM dbo.patients
-)
 SELECT *
 FROM stats;
-*/
